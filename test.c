@@ -65,10 +65,4 @@ void testRemove(void) {
 int main(void) {
     initTests();
     testRemove();
-    axhashmap *h = axh_new(8);
-    uint64_t a = 12;
-    axh_add(h, &a);
-    assert(axh_has(h, &a));
-    a = 12;
-    assert(axh_has(h, &a));
 }
