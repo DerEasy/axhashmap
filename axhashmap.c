@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <xxhash.h>
-#include <axvector.h>
 
 
 typedef struct KeyValue {
@@ -18,11 +17,11 @@ typedef struct KeyValue {
 struct axhashmap {
     KeyValue *table;
     double loadFactor;
-    size_t rehashThreshold;
-    size_t size;
-    size_t tableSize;
-    size_t staticSpan;
-    size_t (*dynamicSpan)(const void *);
+    uint64_t rehashThreshold;
+    uint64_t size;
+    uint64_t tableSize;
+    uint64_t staticSpan;
+    uint64_t (*dynamicSpan)(const void *);
     void (*destroy)(void *, void *);
 };
 
@@ -31,7 +30,7 @@ static bool isEmpty(KeyValue *kv) {
     return !kv->hash && !kv->key;
 }
 
-static size_t strlenSpan(const void *key) {
+static uint64_t strlenSpan(const void *key) {
     return strlen(key);
 }
 
@@ -56,7 +55,7 @@ static uint64_t probeLength(uint64_t index1, uint64_t index2, uint64_t tableSize
         return tableSize - (index1 - index2);
 }
 
-static size_t span(axhashmap *h, const void *key) {
+static uint64_t span(axhashmap *h, const void *key) {
     if (h->staticSpan)
         return h->staticSpan;
     else
@@ -71,8 +70,8 @@ static bool matches(axhashmap *h, const KeyValue *kv1, const KeyValue *kv2) {
     else if (h->dynamicSpan == strlenSpan)
         return strcmp(kv1->key, kv2->key);
     else {
-        size_t len1 = h->dynamicSpan(kv1->key);
-        size_t len2 = h->dynamicSpan(kv2->key);
+        uint64_t len1 = h->dynamicSpan(kv1->key);
+        uint64_t len2 = h->dynamicSpan(kv2->key);
         return len1 == len2 && memcmp(kv1->key, kv2->key, len1) == 0;
     }
 }
@@ -81,7 +80,7 @@ static bool crowded(axhashmap *h) {
     return h->size >= h->rehashThreshold;
 }
 
-static size_t nextTableSize(axhashmap *h) {
+static uint64_t nextTableSize(axhashmap *h) {
     return h->tableSize * 2;
 }
 
@@ -98,7 +97,7 @@ axhashmap *axh_setLoadFactor(axhashmap *h, double lf) {
     if (lf < 0) lf = 0;
     if (lf > 1) lf = 1;
     h->loadFactor = lf;
-    h->rehashThreshold = (size_t) ((double) h->tableSize * lf);
+    h->rehashThreshold = (uint64_t) ((double) h->tableSize * lf);
     return h;
 }
 
@@ -106,12 +105,12 @@ double axh_getLoadFactor(axhashmap *h) {
     return h->loadFactor;
 }
 
-axhashmap *axh_setDynamicSpan(axhashmap *h, size_t (*dynamicSpan)(const void *)) {
+axhashmap *axh_setDynamicSpan(axhashmap *h, uint64_t (*dynamicSpan)(const void *)) {
     h->dynamicSpan = dynamicSpan ? dynamicSpan : strlenSpan;
     return h;
 }
 
-size_t (*axh_getDynamicSpan(axhashmap *h))(const void *) {
+uint64_t (*axh_getDynamicSpan(axhashmap *h))(const void *) {
     return h->dynamicSpan;
 }
 
@@ -125,7 +124,7 @@ void (*axh_getDestructor(axhashmap *h))(void *, void *) {
 }
 
 
-axhashmap *axh_sizedNew(size_t span, size_t size, double loadFactor) {
+axhashmap *axh_sizedNew(uint64_t span, uint64_t size, double loadFactor) {
     size += !size;
     axhashmap *h = malloc(sizeof *h);
 
@@ -135,7 +134,7 @@ axhashmap *axh_sizedNew(size_t span, size_t size, double loadFactor) {
     }
 
     h->loadFactor = loadFactor;
-    h->rehashThreshold = (size_t) ((double) size * h->loadFactor);
+    h->rehashThreshold = (uint64_t) ((double) size * h->loadFactor);
     h->size = 0;
     h->tableSize = size;
     h->staticSpan = span;
@@ -144,14 +143,14 @@ axhashmap *axh_sizedNew(size_t span, size_t size, double loadFactor) {
     return h;
 }
 
-axhashmap *axh_new(size_t span) {
+axhashmap *axh_new(uint64_t span) {
     return axh_sizedNew(span, 16, 2./3.);
 }
 
 void axh_destroy(axhashmap *h) {
     if (h->destroy) {
         KeyValue *kv = h->table;
-        for (size_t mapped = 0; mapped < h->size; ++kv) {
+        for (uint64_t mapped = 0; mapped < h->size; ++kv) {
             if (!isEmpty(kv)) {
                 h->destroy(kv->key, kv->value);
                 ++mapped;
@@ -188,14 +187,14 @@ static bool unsafeMap(axhashmap *h, KeyValue *kv) {
     return false;
 }
 
-bool axh_rehash(axhashmap *h, size_t size) {
+bool axh_rehash(axhashmap *h, uint64_t size) {
     axhashmap h2 = {NULL, .0, 0, 0, size, h->staticSpan, h->dynamicSpan, NULL};
     if (size < h->size)
         return true;
     if (!(h2.table = calloc(size, sizeof *h2.table)))
         return true;
 
-    for (size_t i = 0, mapped = 0; mapped < h->size; ++i) {
+    for (uint64_t i = 0, mapped = 0; mapped < h->size; ++i) {
         KeyValue *selection = &h->table[i];
 
         if (!isEmpty(selection)) {
@@ -207,11 +206,11 @@ bool axh_rehash(axhashmap *h, size_t size) {
     free(h->table);
     h->table = h2.table;
     h->tableSize = size;
-    h->rehashThreshold = (size_t) ((double) size * h->loadFactor);
+    h->rehashThreshold = (uint64_t) ((double) size * h->loadFactor);
     return false;
 }
 
-int axh_sizedMap(axhashmap *h, void *key, void *value, size_t size) {
+int axh_sizedMap(axhashmap *h, void *key, void *value, uint64_t size) {
     if (crowded(h) && axh_rehash(h, nextTableSize(h)))
         return -1;
 
@@ -233,8 +232,7 @@ static KeyValue *locate(axhashmap *h, void *key) {
     const KeyValue kv = {hash, key, NULL};
     KeyValue *selection = &h->table[index];
 
-    uint64_t kvProbes;
-    for (kvProbes = 0; !isEmpty(selection); ++kvProbes) {
+    for (uint64_t kvProbes = 0; !isEmpty(selection); ++kvProbes) {
         if (matches(h, selection, &kv))
             return selection;
 
