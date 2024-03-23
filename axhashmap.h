@@ -11,17 +11,29 @@
 
 typedef struct axhashmap axhashmap;
 
-axhashmap *axh_sizedNew(size_t size, size_t span, double loadFactor);
 
-axhashmap *axh_new(size_t span);
-
-void axh_destroy(axhashmap *h);
+uint64_t axh_size(axhashmap *h);
 
 uint64_t axh_tableSize(axhashmap *h);
 
 axhashmap *axh_setLoadFactor(axhashmap *h, double lf);
 
-axhashmap *axh_setComparator(axhashmap *h, bool (*cmp)(const void *, const void *));
+double axh_getLoadFactor(axhashmap *h);
+
+axhashmap *axh_setDynamicSpan(axhashmap *h, size_t (*dynamicSpan)(const void *));
+
+size_t (*axh_getDynamicSpan(axhashmap *h))(const void *);
+
+axhashmap *axh_setDestructor(axhashmap *h, void (*destroy)(void *, void *));
+
+void (*axh_getDestructor(axhashmap *h))(void *, void *);
+
+
+axhashmap *axh_sizedNew(size_t size, size_t span, double loadFactor);
+
+axhashmap *axh_new(size_t span);
+
+void axh_destroy(axhashmap *h);
 
 bool axh_rehash(axhashmap *h, size_t size);
 
