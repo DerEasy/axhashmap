@@ -118,7 +118,7 @@ void testStrings(struct xsr256ss *seed) {
 }
 
 
-void playground(void) {
+void playground1(void) {
     axhashmap *h = axh_new(0);
     char *keys[] = {"+", "-", "&&", "||", "=="};
     enum {N = sizeof keys / sizeof *keys};
@@ -135,11 +135,27 @@ void playground(void) {
 
     for (int i = 0; i < N; ++i)
         puts(axh_has(h, keys[i]) ? "yes" : "no");
+    axh_destroy(h);
+}
+
+
+void playground2(void) {
+    axhashmap *h = axh_new(0);
+    char *keys[] = {"+", "-", "&&", "||", "=="};
+    enum {N = sizeof keys / sizeof *keys};
+    char *values[N] = {"TOK_PLUS", "TOK_MINUS", "TOK_LOGICAL_AND", "TOK_LOGICAL_OR", "TOK_EQUALS"};
+
+    for (int i = 0; i < N; ++i)
+        axh_map(h, keys[i], values[i]);
+
+    for (axhsnap s = axh_snapinit(); axh_snapshot(h, &s); )
+        printf("%s\t%s\n", (char *) s.key, (char *) s.value);
+    axh_destroy(h);
 }
 
 
 int main(void) {
-    playground();
+    playground2();
     /*
     struct xsr256ss seed;
     getrandom(&seed, sizeof seed, 0);

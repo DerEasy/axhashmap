@@ -27,7 +27,7 @@ struct axhashmap {
 };
 
 
-static bool isEmpty(KeyValue *kv) {
+static bool isEmpty(const KeyValue *kv) {
     return !kv->hash && !kv->key;
 }
 
@@ -345,3 +345,26 @@ axhashmap *axh_copy(axhashmap *h) {
     h2->loadFactor = h->loadFactor;
     return h2;
 }
+
+bool axh_snapshot(axhashmap *h, axhsnap *snapshot) {
+    const KeyValue *kv;
+    if (!snapshot->_)
+        snapshot->_ = kv = h->table;
+    else
+        kv = (const KeyValue *) snapshot->_ + 1;
+
+    const KeyValue *limit = &h->table[h->tableSize];
+    while (kv < limit && isEmpty(kv))
+        ++kv;
+
+    if (kv >= limit) {
+        *snapshot = (axhsnap) {0};
+        return false;
+    } else {
+        snapshot->key = kv->key;
+        snapshot->value = kv->value;
+        snapshot->_ = kv;
+        return true;
+    }
+}
+
