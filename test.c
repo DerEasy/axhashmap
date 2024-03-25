@@ -48,7 +48,7 @@ void testRemove(struct xsr256ss *seed) {
         shuffleU64(tmp, N, seed);
         for (unsigned i = 0; i < removeCount; ++i) {
             assert(axh_has(h, &tmp[i]));
-            axh_remove(h, &tmp[i]);
+            axh_unmap(h, &tmp[i]);
             assert(!axh_has(h, &tmp[i]));
         }
         for (unsigned i = 0; i < N; ++i) {
@@ -98,7 +98,7 @@ void testStrings(struct xsr256ss *seed) {
         shuffleStrings(tmp, N, seed);
         for (unsigned s = 0; s < removeCount; ++s) {
             assert(axh_has(h, tmp[s]));
-            axh_remove(h, tmp[s]);
+            axh_unmap(h, tmp[s]);
             assert(!axh_has(h, tmp[s]));
         }
 
@@ -120,13 +120,30 @@ void testStrings(struct xsr256ss *seed) {
 
 void playground(void) {
     axhashmap *h = axh_new(0);
+    char *keys[] = {"+", "-", "&&", "||", "=="};
+    enum {N = sizeof keys / sizeof *keys};
+    char *values[N] = {"TOK_PLUS", "TOK_MINUS", "TOK_LOGICAL_AND", "TOK_LOGICAL_OR", "TOK_EQUALS"};
 
+    for (int i = 0; i < N; ++i)
+        axh_map(h, keys[i], values[i]);
+    for (int i = 0; i < N; ++i)
+        puts(axh_get(h, keys[i]));
+
+    printf("size %lu\n", axh_size(h));
+    axh_clear(h);
+    printf("size %lu\n", axh_size(h));
+
+    for (int i = 0; i < N; ++i)
+        puts(axh_has(h, keys[i]) ? "yes" : "no");
 }
 
 
 int main(void) {
+    playground();
+    /*
     struct xsr256ss seed;
     getrandom(&seed, sizeof seed, 0);
     testRemove(&seed);
     testStrings(&seed);
+     */
 }

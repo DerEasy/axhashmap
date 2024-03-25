@@ -45,7 +45,9 @@ bool axh_has(axhashmap *h, void *key);
 
 void *axh_get(axhashmap *h, void *key);
 
-bool axh_remove(axhashmap *h, void *key);
+bool axh_tryGet(axhashmap *h, void *key, void **result);
+
+bool axh_unmap(axhashmap *h, void *key);
 
 axhashmap *axh_clear(axhashmap *h);
 
