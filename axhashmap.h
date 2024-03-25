@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct axhashmap axhashmap;
 
@@ -19,9 +20,9 @@ axhashmap *axh_setLoadFactor(axhashmap *h, double lf);
 
 double axh_getLoadFactor(axhashmap *h);
 
-axhashmap *axh_setDynamicSpan(axhashmap *h, uint64_t (*dynamicSpan)(const void *));
+axhashmap *axh_setToHash(axhashmap *h, uint64_t (*toHash)(const void *, uint64_t (*)(const void *, size_t)));
 
-uint64_t (*axh_getDynamicSpan(axhashmap *h))(const void *);
+uint64_t (*axh_getToHash(axhashmap *h))(const void *, uint64_t (*)(const void *, size_t));
 
 axhashmap *axh_setDestructor(axhashmap *h, void (*destroy)(void *, void *));
 
@@ -34,9 +35,7 @@ axhashmap *axh_new(uint64_t span);
 
 void axh_destroy(axhashmap *h);
 
-bool axh_rehash(axhashmap *h, uint64_t size);
-
-int axh_sizedMap(axhashmap *h, void *key, void *value, uint64_t size);
+bool axh_rehash(axhashmap *h, uint64_t tableSize);
 
 int axh_map(axhashmap *h, void *key, void *value);
 

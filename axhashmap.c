@@ -21,7 +21,8 @@ struct axhashmap {
     uint64_t size;
     uint64_t tableSize;
     uint64_t staticSpan;
-    uint64_t (*dynamicSpan)(const void *);
+    uint64_t (*toHash)(const void *, uint64_t (*)(const void *, size_t));
+    bool (*cmp)(const void *, const void *);
     void (*destroy)(void *, void *);
 };
 
@@ -30,8 +31,13 @@ static bool isEmpty(KeyValue *kv) {
     return !kv->hash && !kv->key;
 }
 
-static uint64_t strlenSpan(const void *key) {
-    return strlen(key);
+static uint64_t strToHash(const void *str, uint64_t (*_)(const void *, size_t)) {
+    (void) _;
+    return XXH3_64bits(str, strlen(str));
+}
+
+static bool cmpAddresses(const void *a, const void *b) {
+    return a == b;
 }
 
 static uint64_t mod1(uint64_t n, uint64_t k) {
@@ -55,11 +61,11 @@ static uint64_t probeLength(uint64_t index1, uint64_t index2, uint64_t tableSize
         return tableSize - (index1 - index2);
 }
 
-static uint64_t span(axhashmap *h, const void *key) {
+static uint64_t hashKey(axhashmap *h, void *key) {
     if (h->staticSpan)
-        return h->staticSpan;
+        return XXH3_64bits(key, h->staticSpan);
     else
-        return h->dynamicSpan(key);
+        return h->toHash(key, XXH3_64bits);
 }
 
 static bool matches(axhashmap *h, const KeyValue *kv1, const KeyValue *kv2) {
@@ -67,13 +73,10 @@ static bool matches(axhashmap *h, const KeyValue *kv1, const KeyValue *kv2) {
         return false;
     else if (h->staticSpan)
         return memcmp(kv1->key, kv2->key, h->staticSpan) == 0;
-    else if (h->dynamicSpan == strlenSpan)
-        return strcmp(kv1->key, kv2->key);
-    else {
-        uint64_t len1 = h->dynamicSpan(kv1->key);
-        uint64_t len2 = h->dynamicSpan(kv2->key);
-        return len1 == len2 && memcmp(kv1->key, kv2->key, len1) == 0;
-    }
+    else if (h->toHash == strToHash && h->cmp == cmpAddresses)
+        return strcmp(kv1->key, kv2->key) == 0;
+    else
+        return h->cmp(kv1->key, kv2->key);
 }
 
 static bool crowded(axhashmap *h) {
@@ -105,13 +108,22 @@ double axh_getLoadFactor(axhashmap *h) {
     return h->loadFactor;
 }
 
-axhashmap *axh_setDynamicSpan(axhashmap *h, uint64_t (*dynamicSpan)(const void *)) {
-    h->dynamicSpan = dynamicSpan ? dynamicSpan : strlenSpan;
+axhashmap *axh_setComparator(axhashmap *h, bool (*cmp)(const void *, const void *)) {
+    h->cmp = cmp ? cmp : cmpAddresses;
     return h;
 }
 
-uint64_t (*axh_getDynamicSpan(axhashmap *h))(const void *) {
-    return h->dynamicSpan;
+bool (*axh_getComparator(axhashmap *h))(const void *, const void *) {
+    return h->cmp;
+}
+
+axhashmap *axh_setToHash(axhashmap *h, uint64_t (*toHash)(const void *, uint64_t (*)(const void *, size_t))) {
+    h->toHash = toHash ? toHash : strToHash;
+    return h;
+}
+
+uint64_t (*axh_getToHash(axhashmap *h))(const void *, uint64_t (*)(const void *, size_t)) {
+    return h->toHash;
 }
 
 axhashmap *axh_setDestructor(axhashmap *h, void (*destroy)(void *, void *)) {
@@ -138,7 +150,8 @@ axhashmap *axh_sizedNew(uint64_t span, uint64_t size, double loadFactor) {
     h->size = 0;
     h->tableSize = size;
     h->staticSpan = span;
-    h->dynamicSpan = strlenSpan;
+    h->toHash = strToHash;
+    h->cmp = cmpAddresses;
     h->destroy = NULL;
     return h;
 }
@@ -162,12 +175,12 @@ void axh_destroy(axhashmap *h) {
     free(h);
 }
 
-static bool unsafeMap(axhashmap *h, KeyValue *kv) {
+static bool unsafeMap(axhashmap *h, KeyValue *kv, bool mightMatch) {
     uint64_t index = computeIndex(kv->hash, h->tableSize);
     KeyValue *selection = &h->table[index];
 
     for (uint64_t kvProbes = 0; !isEmpty(selection); ++kvProbes) {
-        if (matches(h, selection, kv))
+        if (mightMatch && matches(h, selection, kv))
             return true;
 
         const uint64_t selectionProbes = probeLength(computeIndex(selection->hash, h->tableSize), index, h->tableSize);
@@ -187,47 +200,44 @@ static bool unsafeMap(axhashmap *h, KeyValue *kv) {
     return false;
 }
 
-bool axh_rehash(axhashmap *h, uint64_t size) {
-    axhashmap h2 = {NULL, .0, 0, 0, size, h->staticSpan, h->dynamicSpan, NULL};
-    if (size < h->size)
+bool axh_rehash(axhashmap *h, uint64_t tableSize) {
+    axhashmap h2 = {.tableSize = tableSize};
+    if (tableSize < h->size)
         return true;
-    if (!(h2.table = calloc(size, sizeof *h2.table)))
+    if (!(h2.table = calloc(tableSize, sizeof *h2.table)))
         return true;
 
     for (uint64_t i = 0, mapped = 0; mapped < h->size; ++i) {
         KeyValue *selection = &h->table[i];
 
         if (!isEmpty(selection)) {
-            unsafeMap(&h2, selection);
+            unsafeMap(&h2, selection, false);
             ++mapped;
         }
     }
 
     free(h->table);
     h->table = h2.table;
-    h->tableSize = size;
-    h->rehashThreshold = (uint64_t) ((double) size * h->loadFactor);
+    h->tableSize = tableSize;
+    h->rehashThreshold = (uint64_t) ((double) tableSize * h->loadFactor);
     return false;
 }
 
-int axh_sizedMap(axhashmap *h, void *key, void *value, uint64_t size) {
+
+int axh_map(axhashmap *h, void *key, void *value) {
     if (crowded(h) && axh_rehash(h, nextTableSize(h)))
         return -1;
 
-    KeyValue kv = {XXH3_64bits(key, size), key, value};
-    return unsafeMap(h, &kv);
-}
-
-int axh_map(axhashmap *h, void *key, void *value) {
-    return axh_sizedMap(h, key, value, span(h, key));
+    KeyValue kv = {hashKey(h, key), key, value};
+    return unsafeMap(h, &kv, true);
 }
 
 int axh_add(axhashmap *h, void *key) {
-    return axh_sizedMap(h, key, key, span(h, key));
+    return axh_map(h, key, key);
 }
 
 static KeyValue *locate(axhashmap *h, void *key) {
-    XXH64_hash_t hash = XXH3_64bits(key, span(h, key));
+    XXH64_hash_t hash = hashKey(h, key);
     uint64_t index = computeIndex(hash, h->tableSize);
     const KeyValue kv = {hash, key, NULL};
     KeyValue *selection = &h->table[index];
