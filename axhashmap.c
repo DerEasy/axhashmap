@@ -282,32 +282,56 @@ bool axh_tryGet(axhashmap *h, void *key, void **result) {
     return kv;
 }
 
-bool axh_unmap(axhashmap *h, void *key) {
-    KeyValue *selection = locate(h, key);
-    if (!selection)
-        return false;
-    
+static void unsafeUnmap(axhashmap *h, KeyValue *selection) {
     uint64_t index = selection - h->table;
     KeyValue *prior = selection;
     selection = nextKV(h, selection);
 
     if (h->destroy)
         h->destroy(prior->key, prior->value);
-    
+
     while (!isEmpty(selection)) {
         const uint64_t nextIndex = mod1(index + 1, h->tableSize);
         if (probeLength(computeIndex(selection->hash, h->tableSize), nextIndex, h->tableSize) == 0)
             break;
-        
+
         *prior = *selection;
         prior = selection;
         selection = nextKV(h, selection);
         index = nextIndex;
     }
-    
+
     *prior = (KeyValue) {0};
     --h->size;
-    return true;
+}
+
+bool axh_unmap(axhashmap *h, void *key) {
+    KeyValue *selection = locate(h, key);
+    if (selection)
+        unsafeUnmap(h, selection);
+    return selection;
+}
+
+axhashmap *axh_filter(axhashmap *h, bool (*f)(const void *, void *, void *), void *arg) {
+    KeyValue *kv = h->table;
+    for (uint64_t passed = 0; passed < h->size; ++kv) {
+        const bool alive = !isEmpty(kv);
+        passed += alive;
+        if (alive && f(kv->key, kv->value, arg))
+            unsafeUnmap(h, kv);
+    }
+    return h;
+}
+
+axhashmap *axh_foreach(axhashmap *h, bool (*f)(const void *, void *, void *), void *arg) {
+    KeyValue *kv = h->table;
+    for (uint64_t passed = 0; passed < h->size; ++kv) {
+        const bool alive = !isEmpty(kv);
+        passed += alive;
+        if (alive && !f(kv->key, kv->value, arg))
+            return h;
+    }
+    return h;
 }
 
 axhashmap *axh_clear(axhashmap *h) {
@@ -344,27 +368,5 @@ axhashmap *axh_copy(axhashmap *h) {
     h2->destroy = NULL;
     h2->loadFactor = h->loadFactor;
     return h2;
-}
-
-bool axh_snapshot(axhashmap *h, axhsnap *snapshot) {
-    const KeyValue *kv;
-    if (!snapshot->_)
-        snapshot->_ = kv = h->table;
-    else
-        kv = (const KeyValue *) snapshot->_ + 1;
-
-    const KeyValue *limit = &h->table[h->tableSize];
-    while (kv < limit && isEmpty(kv))
-        ++kv;
-
-    if (kv >= limit) {
-        *snapshot = (axhsnap) {0};
-        return false;
-    } else {
-        snapshot->key = kv->key;
-        snapshot->value = kv->value;
-        snapshot->_ = kv;
-        return true;
-    }
 }
 

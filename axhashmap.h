@@ -11,12 +11,6 @@
 
 typedef struct axhashmap axhashmap;
 
-typedef struct axhsnap {
-    const void *key;
-    void *value;
-    const void *_;
-} axhsnap;
-
 
 uint64_t axh_size(axhashmap *h);
 
@@ -55,12 +49,12 @@ bool axh_tryGet(axhashmap *h, void *key, void **result);
 
 bool axh_unmap(axhashmap *h, void *key);
 
+axhashmap *axh_filter(axhashmap *h, bool (*f)(const void *, void *, void *), void *arg);
+
+axhashmap *axh_foreach(axhashmap *h, bool (*f)(const void *, void *, void *), void *arg);
+
 axhashmap *axh_clear(axhashmap *h);
 
 axhashmap *axh_copy(axhashmap *h);
-
-static axhsnap axh_snapinit(void) { return (axhsnap) {0}; }
-
-bool axh_snapshot(axhashmap *h, axhsnap *snapshot);
 
 #endif //AXHASH_AXHASHMAP_H

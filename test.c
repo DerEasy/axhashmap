@@ -147,15 +147,12 @@ void playground2(void) {
 
     for (int i = 0; i < N; ++i)
         axh_map(h, keys[i], values[i]);
-
-    for (axhsnap s = axh_snapinit(); axh_snapshot(h, &s); )
-        printf("%s\t%s\n", (char *) s.key, (char *) s.value);
     axh_destroy(h);
 }
 
 
 int main(void) {
-    playground2();
+    playground1();
     /*
     struct xsr256ss seed;
     getrandom(&seed, sizeof seed, 0);
