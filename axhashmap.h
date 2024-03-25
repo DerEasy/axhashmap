@@ -29,7 +29,7 @@ axhashmap *axh_setDestructor(axhashmap *h, void (*destroy)(void *, void *));
 void (*axh_getDestructor(axhashmap *h))(void *, void *);
 
 
-axhashmap *axh_sizedNew(uint64_t size, uint64_t span, double loadFactor);
+axhashmap *axh_sizedNew(uint64_t span, uint64_t tableSize, double loadFactor);
 
 axhashmap *axh_new(uint64_t span);
 
@@ -46,5 +46,7 @@ bool axh_has(axhashmap *h, void *key);
 void *axh_get(axhashmap *h, void *key);
 
 bool axh_remove(axhashmap *h, void *key);
+
+axhashmap *axh_clear(axhashmap *h);
 
 #endif //AXHASH_AXHASHMAP_H

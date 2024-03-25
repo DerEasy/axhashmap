@@ -16,7 +16,6 @@ typedef struct KeyValue {
 
 struct axhashmap {
     KeyValue *table;
-    double loadFactor;
     uint64_t rehashThreshold;
     uint64_t size;
     uint64_t tableSize;
@@ -24,6 +23,7 @@ struct axhashmap {
     uint64_t (*toHash)(const void *, uint64_t (*)(const void *, size_t));
     bool (*cmp)(const void *, const void *);
     void (*destroy)(void *, void *);
+    double loadFactor;
 };
 
 
@@ -145,14 +145,14 @@ axhashmap *axh_sizedNew(uint64_t span, uint64_t size, double loadFactor) {
         return NULL;
     }
 
-    h->loadFactor = loadFactor;
-    h->rehashThreshold = (uint64_t) ((double) size * h->loadFactor);
+    h->rehashThreshold = (uint64_t) ((double) size * loadFactor);
     h->size = 0;
     h->tableSize = size;
     h->staticSpan = span;
     h->toHash = strToHash;
     h->cmp = cmpAddresses;
     h->destroy = NULL;
+    h->loadFactor = loadFactor;
     return h;
 }
 
@@ -223,7 +223,6 @@ bool axh_rehash(axhashmap *h, uint64_t tableSize) {
     return false;
 }
 
-
 int axh_map(axhashmap *h, void *key, void *value) {
     if (crowded(h) && axh_rehash(h, nextTableSize(h)))
         return -1;
@@ -292,5 +291,21 @@ bool axh_remove(axhashmap *h, void *key) {
     *prior = (KeyValue) {0};
     --h->size;
     return true;
+}
+
+axhashmap *axh_clear(axhashmap *h) {
+    KeyValue *kv = h->table;
+    if (h->destroy) {
+        for (uint64_t unmapped = 0; unmapped < h->size; *kv++ = (KeyValue) {0}) {
+            if (!isEmpty(kv)) {
+                h->destroy(kv->key, kv->value);
+                ++unmapped;
+            }
+        }
+    }
+
+    h->size = 0;
+    memset(kv, 0, (&h->table[h->tableSize] - kv) * sizeof *h->table);
+    return h;
 }
 

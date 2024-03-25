@@ -112,7 +112,15 @@ void testStrings(struct xsr256ss *seed) {
         axh_destroy(h);
     }
 
+    for (int i = 0; i < N; ++i)
+        free(pool[i]);
     puts("Native string functionality test successful");
+}
+
+
+void playground(void) {
+    axhashmap *h = axh_new(0);
+
 }
 
 
