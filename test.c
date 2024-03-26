@@ -153,10 +153,8 @@ void playground2(void) {
 
 int main(void) {
     playground1();
-    /*
     struct xsr256ss seed;
     getrandom(&seed, sizeof seed, 0);
     testRemove(&seed);
     testStrings(&seed);
-     */
 }

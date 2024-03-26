@@ -50,8 +50,13 @@ static KeyValue *nextKV(axhashmap *h, KeyValue *kv) {
 }
 
 static uint64_t computeIndex(uint64_t hash, uint64_t tableSize) {
-    typedef unsigned __int128 u128;
+#ifndef __GNUC__
+#define __extension__
+#endif
+    /* Fast modulo reduction using multiplication overflow. Needs 128-bit support though. */
+    __extension__ typedef  unsigned __int128 u128;
     return (uint64_t) ((u128) hash * (u128) tableSize >> 64);
+#undef __extension__
 }
 
 static uint64_t probeLength(uint64_t index1, uint64_t index2, uint64_t tableSize) {
@@ -181,8 +186,11 @@ static bool unsafeMap(axhashmap *h, KeyValue *kv, const bool mightMatch, const b
 
     for (uint64_t kvProbes = 0; !isEmpty(selection); ++kvProbes) {
         if (mightMatch && matches(h, selection, kv)) {
-            if (remap)
+            if (remap) {
+                void *value = selection->value;
                 *selection = *kv;
+                kv->value = value;
+            }
             return true;
         }
 
@@ -239,7 +247,10 @@ int axh_remap(axhashmap *h, void *key, void *value) {
         return -1;
     
     KeyValue kv = {hashKey(h, key), key, value};
-    return unsafeMap(h, &kv, true, true);
+    bool status = unsafeMap(h, &kv, true, true);
+    if (status && h->destroy)
+        h->destroy(NULL, kv.value);
+    return status;
 }
 
 int axh_add(axhashmap *h, void *key) {
@@ -276,9 +287,9 @@ void *axh_get(axhashmap *h, void *key) {
     return kv ? kv->value : NULL;
 }
 
-bool axh_tryGet(axhashmap *h, void *key, void **result) {
+bool axh_tryGet(axhashmap *h, void *key, void **value) {
     KeyValue *kv = locate(h, key);
-    *result = kv ? kv->value : NULL;
+    *value = kv ? kv->value : NULL;
     return kv;
 }
 

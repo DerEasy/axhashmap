@@ -1,7 +1,7 @@
-Robin-Hood hash table using xxhash (XXH3) with linear lookup
+Robin-Hood hash table using xxhash (XXH3)
 Table size of experiment: 1000000
 Hashed value type: 32-bit little endian signed integers
-Actual values mapped: 0 to (load factor * table size) [incl./excl.]
+Actual values mapped: 0 to (load * table size) [incl./excl.]
 
 Observations:
 Load            Average probe length
