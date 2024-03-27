@@ -50,13 +50,9 @@ static KeyValue *nextKV(axhashmap *h, KeyValue *kv) {
 }
 
 static uint64_t computeIndex(uint64_t hash, uint64_t tableSize) {
-#ifndef __GNUC__
-#define __extension__
-#endif
     /* Fast modulo reduction using multiplication overflow. Needs 128-bit support though. */
     __extension__ typedef  unsigned __int128 u128;
     return (uint64_t) ((u128) hash * (u128) tableSize >> 64);
-#undef __extension__
 }
 
 static uint64_t probeLength(uint64_t index1, uint64_t index2, uint64_t tableSize) {
