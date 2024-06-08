@@ -97,6 +97,10 @@ uint64_t axh_tableSize(axhashmap *h) {
     return h->tableSize;
 }
 
+uint64_t axh_span(axhashmap *h) {
+    return h->staticSpan;
+}
+
 axhashmap *axh_setLoadFactor(axhashmap *h, double lf) {
     if (lf < 0) lf = 0;
     if (lf > 1) lf = 1;
@@ -140,12 +144,10 @@ void (*axh_getDestructor(axhashmap *h))(void *, void *) {
 axhashmap *axh_sizedNew(uint64_t span, uint64_t tableSize, double loadFactor) {
     tableSize += !tableSize;
     axhashmap *h = malloc(sizeof *h);
-
     if (!h || !(h->table = calloc(tableSize, sizeof *h->table))) {
         free(h);
         return NULL;
     }
-
     h->rehashThreshold = (uint64_t) ((double) tableSize * loadFactor);
     h->size = 0;
     h->tableSize = tableSize;
@@ -171,7 +173,6 @@ void axh_destroy(axhashmap *h) {
             }
         }
     }
-
     free(h->table);
     free(h);
 }
@@ -179,7 +180,6 @@ void axh_destroy(axhashmap *h) {
 static bool unsafeMap(axhashmap *h, KeyValue *kv, const bool mightMatch, const bool remap) {
     uint64_t index = computeIndex(kv->hash, h->tableSize);
     KeyValue *selection = &h->table[index];
-
     for (uint64_t kvProbes = 0; !isEmpty(selection); ++kvProbes) {
         if (mightMatch && matches(h, selection, kv)) {
             if (remap) {
@@ -201,7 +201,6 @@ static bool unsafeMap(axhashmap *h, KeyValue *kv, const bool mightMatch, const b
         index = mod1(index + 1, h->tableSize);
         selection = &h->table[index];
     }
-
     *selection = *kv;
     ++h->size;
     return false;
@@ -213,16 +212,13 @@ bool axh_rehash(axhashmap *h, uint64_t tableSize) {
         return true;
     if (!(h2.table = calloc(tableSize, sizeof *h2.table)))
         return true;
-
     for (uint64_t i = 0, mapped = 0; mapped < h->size; ++i) {
         KeyValue *selection = &h->table[i];
-
         if (!isEmpty(selection)) {
             unsafeMap(&h2, selection, false, false);
             ++mapped;
         }
     }
-
     free(h->table);
     h->table = h2.table;
     h->tableSize = tableSize;
@@ -233,7 +229,6 @@ bool axh_rehash(axhashmap *h, uint64_t tableSize) {
 int axh_map(axhashmap *h, void *key, void *value) {
     if (crowded(h) && axh_rehash(h, nextTableSize(h)))
         return -1;
-
     KeyValue kv = {hashKey(h, key), key, value};
     return unsafeMap(h, &kv, true, false);
 }
@@ -241,7 +236,6 @@ int axh_map(axhashmap *h, void *key, void *value) {
 int axh_remap(axhashmap *h, void *key, void *value) {
     if (crowded(h) && axh_rehash(h, nextTableSize(h)))
         return -1;
-    
     KeyValue kv = {hashKey(h, key), key, value};
     bool status = unsafeMap(h, &kv, true, true);
     if (status && h->destroy)
@@ -296,7 +290,6 @@ static void unsafeUnmap(axhashmap *h, KeyValue *selection) {
 
     if (h->destroy)
         h->destroy(prior->key, prior->value);
-
     while (!isEmpty(selection)) {
         const uint64_t nextIndex = mod1(index + 1, h->tableSize);
         if (probeLength(computeIndex(selection->hash, h->tableSize), nextIndex, h->tableSize) == 0)
@@ -307,7 +300,6 @@ static void unsafeUnmap(axhashmap *h, KeyValue *selection) {
         selection = nextKV(h, selection);
         index = nextIndex;
     }
-
     *prior = (KeyValue) {0};
     --h->size;
 }
@@ -351,7 +343,6 @@ axhashmap *axh_clear(axhashmap *h) {
             }
         }
     }
-
     h->size = 0;
     memset(kv, 0, (&h->table[h->tableSize] - kv) * sizeof *h->table);
     return h;
@@ -359,12 +350,10 @@ axhashmap *axh_clear(axhashmap *h) {
 
 axhashmap *axh_copy(axhashmap *h) {
     axhashmap *h2 = malloc(sizeof *h2);
-
     if (!h2 || !(h2->table = malloc(h->tableSize * sizeof *h->table))) {
         free(h2);
         return NULL;
     }
-
     memcpy(h2->table, h->table, h->tableSize * sizeof *h->table);
     h2->rehashThreshold = h->rehashThreshold;
     h2->size = h->size;

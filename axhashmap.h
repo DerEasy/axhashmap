@@ -74,6 +74,13 @@ uint64_t axh_size(axhashmap *h);
 uint64_t axh_tableSize(axhashmap *h);
 
 /**
+ * The static span of this map. The static span denotes how many bytes of a key are processed by the hash function.
+ * A value of 0 means dynamic span mode is used.
+ * @return Static span of self.
+ */
+uint64_t axh_span(axhashmap *h);
+
+/**
  * Set load factor, which must be in range 0.0 to 1.0. Any other value is saturated.
  * This function does not ever automatically rehash. Rehashing happens when it is
  * needed or manually induced in some following operation.
@@ -90,8 +97,8 @@ double axh_getLoadFactor(axhashmap *h);
 
 /**
  * Set comparator function. When two mappings' hashes are equal in dynamic span mode, this function is used
- * to determine their actual equality by their keys. If toHash() is set to its default, the default comparator is
- * strcmp() (wrapped to conform to the prototype), otherwise it is a simple address equality check.
+ * to determine their actual equality by passing it the keys. If toHash() is set to its default, the default comparator
+ * is strcmp() (wrapped to conform to the prototype), otherwise it is a simple address equality check.
  * @param cmp Some comparator function or NULL for the default.
  * @return Self.
  */

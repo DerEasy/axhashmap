@@ -151,10 +151,20 @@ void playground2(void) {
 }
 
 
+void speedtest(struct xsr256ss *seed) {
+    axhashmap *h = axh_sizedNew(sizeof(uint64_t), 105300000, 19./20.);
+    for (uint64_t i = 0; i < 100000000; ++i) {
+        axh_add(h, &i);
+    }
+    //axh_destroy(h);
+}
+
+
 int main(void) {
-    playground1();
     struct xsr256ss seed;
-    getrandom(&seed, sizeof seed, 0);
+    (void) getrandom(&seed, sizeof seed, 0);
+    speedtest(&seed);
+    /*playground1();
     testRemove(&seed);
-    testStrings(&seed);
+    testStrings(&seed);*/
 }
