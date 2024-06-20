@@ -285,7 +285,8 @@ void *axh_get(axhashmap *h, void *key) {
 
 bool axh_tryGet(axhashmap *h, void *key, void *value) {
     KeyValue *kv = locate(h, key);
-    *(void **) value = kv ? kv->value : NULL;
+    if (kv)
+        *(void **) value = kv->value;
     return kv;
 }
 

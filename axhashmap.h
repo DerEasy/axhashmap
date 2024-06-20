@@ -218,8 +218,8 @@ void *axh_get(axhashmap *h, void *key);
 /**
  * Try getting the value of a mapping.
  * @param key Key with which to search for the mapping.
- * @param value Pointer to where either the value or NULL will be written, depending
- * on whether a matching mapping was found or not, respectively.
+ * @param value Pointer to where either the value will be written if a matching mapping was found. Nothing is written
+ * otherwise.
  * @return True iff a matching mapping was found.
  */
 bool axh_tryGet(axhashmap *h, void *key, void *value);
