@@ -147,7 +147,7 @@ void (*axh_getDestructor(axhashmap *h))(void *, void *) {
 }
 
 
-axhashmap *axh_sizedNew(uint64_t span, uint64_t tableSize, double loadFactor) {
+axhashmap *axh_newSized(uint64_t span, uint64_t tableSize, double loadFactor) {
     tableSize += !tableSize;
     axhashmap *h = malloc(sizeof *h);
     if (!h || !(h->table = calloc(tableSize, sizeof *h->table))) {
@@ -166,7 +166,7 @@ axhashmap *axh_sizedNew(uint64_t span, uint64_t tableSize, double loadFactor) {
 }
 
 axhashmap *axh_new(uint64_t span) {
-    return axh_sizedNew(span, 16, 2./3.);
+    return axh_newSized(span, 16, 2./3.);
 }
 
 void axh_destroy(axhashmap *h) {

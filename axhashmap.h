@@ -153,7 +153,7 @@ void (*axh_getDestructor(axhashmap *h))(void *, void *);
  * @param loadFactor Load factor.
  * @return New hashmap or NULL iff OOM.
  */
-axhashmap *axh_sizedNew(uint64_t span, uint64_t tableSize, double loadFactor);
+axhashmap *axh_newSized(uint64_t span, uint64_t tableSize, double loadFactor);
 
 /**
  * Create a new hashmap with default table size and load factor and custom span.
