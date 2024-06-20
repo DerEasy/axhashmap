@@ -222,7 +222,7 @@ void *axh_get(axhashmap *h, void *key);
  * on whether a matching mapping was found or not, respectively.
  * @return True iff a matching mapping was found.
  */
-bool axh_tryGet(axhashmap *h, void *key, void **value);
+bool axh_tryGet(axhashmap *h, void *key, void *value);
 
 /**
  * Unmap a mapping if it exists and call the destructor if it is available.
