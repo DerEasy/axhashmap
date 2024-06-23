@@ -14,6 +14,10 @@
 #include <xxhash.h>
 
 
+static void *(*malloc_)(size_t) = malloc;
+static void *(*calloc_)(size_t, size_t) = calloc;
+static void (*free_)(void *) = free;
+
 typedef struct KeyValue {
     XXH64_hash_t hash;
     void *key;
@@ -146,12 +150,18 @@ void (*axh_getDestructor(axhashmap *h))(void *, void *) {
     return h->destroy;
 }
 
+void axh_memoryfn(void *(*malloc_fn)(size_t), void *(*calloc_fn)(size_t, size_t), void (*free_fn)(void *)) {
+    malloc_ = malloc_fn ? malloc_fn : malloc;
+    calloc_ = calloc_fn ? calloc_fn : calloc;
+    free_ = free_fn ? free_fn : free;
+}
+
 
 axhashmap *axh_newSized(uint64_t span, uint64_t tableSize, double loadFactor) {
     tableSize += !tableSize;
-    axhashmap *h = malloc(sizeof *h);
-    if (!h || !(h->table = calloc(tableSize, sizeof *h->table))) {
-        free(h);
+    axhashmap *h = malloc_(sizeof *h);
+    if (!h || !(h->table = calloc_(tableSize, sizeof *h->table))) {
+        free_(h);
         return NULL;
     }
     h->rehashThreshold = (uint64_t) ((double) tableSize * loadFactor);
@@ -179,8 +189,8 @@ void axh_destroy(axhashmap *h) {
             }
         }
     }
-    free(h->table);
-    free(h);
+    free_(h->table);
+    free_(h);
 }
 
 static bool unsafeMap(axhashmap *h, KeyValue *kv, const bool mightMatch, const bool remap) {
@@ -216,7 +226,7 @@ bool axh_rehash(axhashmap *h, uint64_t tableSize) {
     axhashmap h2 = {.tableSize = tableSize};
     if (tableSize < h->size)
         return true;
-    if (!(h2.table = calloc(tableSize, sizeof *h2.table)))
+    if (!(h2.table = calloc_(tableSize, sizeof *h2.table)))
         return true;
     for (uint64_t i = 0, mapped = 0; mapped < h->size; ++i) {
         KeyValue *selection = &h->table[i];
@@ -225,7 +235,7 @@ bool axh_rehash(axhashmap *h, uint64_t tableSize) {
             ++mapped;
         }
     }
-    free(h->table);
+    free_(h->table);
     h->table = h2.table;
     h->tableSize = tableSize;
     h->rehashThreshold = (uint64_t) ((double) tableSize * h->loadFactor);
@@ -356,9 +366,9 @@ axhashmap *axh_clear(axhashmap *h) {
 }
 
 axhashmap *axh_copy(axhashmap *h) {
-    axhashmap *h2 = malloc(sizeof *h2);
-    if (!h2 || !(h2->table = malloc(h->tableSize * sizeof *h->table))) {
-        free(h2);
+    axhashmap *h2 = malloc_(sizeof *h2);
+    if (!h2 || !(h2->table = malloc_(h->tableSize * sizeof *h->table))) {
+        free_(h2);
         return NULL;
     }
     memcpy(h2->table, h->table, h->tableSize * sizeof *h->table);

@@ -145,6 +145,15 @@ axhashmap *axh_setDestructor(axhashmap *h, void (*destroy)(void *, void *));
  */
 void (*axh_getDestructor(axhashmap *h))(void *, void *);
 
+/**
+ * Set custom memory functions. All three of them must be set and be compatible with one another. Passing NULL for any
+ * function will activate its standard library counterpart.
+ * @param malloc_fn The malloc function.
+ * @param calloc_fn The calloc function.
+ * @param free_fn The free function.
+ */
+void axh_memoryfn(void *(*malloc_fn)(size_t), void *(*calloc_fn)(size_t, size_t), void (*free_fn)(void *));
+
 
 /**
  * Create a new hashmap with some custom table size, load factor and span.
