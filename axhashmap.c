@@ -8,6 +8,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#define XXH_INLINE_ALL
+
 #include "axhashmap.h"
 #include <string.h>
 #include <stdlib.h>
